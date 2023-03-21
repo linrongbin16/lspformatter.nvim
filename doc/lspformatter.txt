@@ -1,0 +1,11 @@
+*lspformatter.txt*                              A code formatter using lsp for Neovim.
+*lspformatter.nvim*
+
+Author: Lin Rongbin <linrongbin16@outlook.com>
+
+CONTENTS                                        *lspformatter-contents*
+Introduction                                    |lspformatter-introduction|
+==============================================================================
+INTRODUCTION                                    *lspformatter-introduction*
+
+Please checkout: https://github.com/linrongbin16/lspformatter.nvim
