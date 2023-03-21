@@ -6,12 +6,20 @@ local Defaults = {
     formatting_params = {},
     create_autocmd = true,
     augroup_name = "lspformatter_augroup",
-    autocmd_event = "BufWritePost",
+    autocmd_event = "BufWritePre",
     debug = false,
 }
 local Configs = {}
 
 local FORMATTING_METHOD = "textDocument/formatting"
+
+local function get_client_name(client)
+    if client then
+        return tostring(client.name) .. "-" .. tostring(client.id)
+    else
+        return "unknown-?"
+    end
+end
 
 local function setup(option)
     Configs = vim.tbl_deep_extend("force", vim.deepcopy(Defaults), option or {})
@@ -55,6 +63,10 @@ local function async_format(bufnr, option)
 
             local client = vim.lsp.get_client_by_id(ctx.client_id)
             if res then
+                logger.debug(
+                    "Apply code format result on client %s",
+                    get_client_name(client)
+                )
                 vim.lsp.util.apply_text_edits(
                     res,
                     bufnr,
@@ -64,20 +76,29 @@ local function async_format(bufnr, option)
                     vim.cmd("silent noautocmd update")
                 end)
             else
-                logger.warn(
-                    "Empty code format result on client %s-%d",
-                    client and tostring(client.name) or "unknown",
-                    ctx.client_id,
+                logger.debug(
+                    "Empty code format result on client %s",
+                    get_client_name(client)
                 )
             end
         end
     )
 end
 
+local function sync_format(bufnr, option)
+    vim.lsp.buf.format({ async = false, bufnr = bufnr })
+end
+
 local function on_attach(client, bufnr, option)
     option = vim.tbl_deep_extend("force", vim.deepcopy(Configs), option or {})
 
+    logger.debug("Client %s enter bufnr %d", get_client_name(client), bufnr)
     if client.supports_method(FORMATTING_METHOD) then
+        logger.debug(
+            "Client %s on attach bufnr %d",
+            get_client_name(client),
+            bufnr
+        )
         vim.api.nvim_clear_autocmds({
             group = option.augroup_name,
             buffer = bufnr,
@@ -86,7 +107,11 @@ local function on_attach(client, bufnr, option)
             group = option.augroup_name,
             buffer = bufnr,
             callback = function()
-                async_format(bufnr, option)
+                if option.async then
+                    async_format(bufnr, option)
+                else
+                    sync_format(bufnr, option)
+                end
             end,
         })
     end
