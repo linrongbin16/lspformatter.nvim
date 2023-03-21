@@ -1,2 +1,3 @@
 # lspformatter.nvim
-Lsp code formatter for Neovim
+
+Lsp code formatter for Neovim.
