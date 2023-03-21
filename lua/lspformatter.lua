@@ -2,14 +2,13 @@ local logger = require("logger")
 
 local Defaults = {
     async = true,
-    null_ls_only = true,
+    null_ls_only = false,
     timeout = 2000,
     formatting_params = {},
     create_autocmd = true,
     augroup_name = "lspformatter_augroup",
-    autocmd_event = "BufWritePost",
-    debug = true,
-    file_log = true,
+    debug = false,
+    file_log = false,
     file_log_name = "lspformatter.log",
 }
 local Configs = {}
@@ -124,7 +123,14 @@ local function async_format(bufnr, option)
 end
 
 local function sync_format(bufnr, option)
-    vim.lsp.buf.format({ async = false, bufnr = bufnr })
+    vim.lsp.buf.format({
+        async = false,
+        bufnr = bufnr,
+        timeout_ms = option.timeout,
+        formatting_options = vim.lsp.util.make_formatting_params(
+            option.formatting_params or {}
+        ),
+    })
 end
 
 local function on_attach(client, bufnr, option)
@@ -146,17 +152,23 @@ local function on_attach(client, bufnr, option)
             group = option.augroup_name,
             buffer = bufnr,
         })
-        vim.api.nvim_create_autocmd(option.autocmd_event, {
-            group = option.augroup_name,
-            buffer = bufnr,
-            callback = function()
-                if option.async then
+        if option.async then
+            vim.api.nvim_create_autocmd("BufWritePost", {
+                group = option.augroup_name,
+                buffer = bufnr,
+                callback = function()
                     async_format(bufnr, option)
-                else
+                end,
+            })
+        else
+            vim.api.nvim_create_autocmd("BufWritePre", {
+                group = option.augroup_name,
+                buffer = bufnr,
+                callback = function()
                     sync_format(bufnr, option)
-                end
-            end,
-        })
+                end,
+            })
+        end
     end
 end
 

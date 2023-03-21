@@ -30,35 +30,50 @@ I read most of their source code and write this plugin.
 
 ## Usage
 
-Attach in lsp client:
+Attach when setup lsp client:
 
 ```lua
-require("lspformatter").on_attach(client, bufnr)
+lspconfig.tsserver.setup({on_attach = require("lspformatter").on_attach})
+
+lspconfig[lsp].setup({
+    on_attach = function(client, bufnr)
+        require("lspformatter").on_attach(client, bufnr)
+    end,
+})
 ```
 
 ## Configuration
 
 ```lua
 require('lspformatter').setup({
-    -- Async format
+    -- Async format.
     async = true,
+
+    -- Only apply null-ls formatting changes.
+    null_ls_only = false,
 
     -- Timeout on wait formatting result in milliseconds.
     timeout = 2000,
 
-    -- Formatting parameters
+    -- Formatting parameters.
     formatting_params = {},
 
-    -- Create auto command
+    -- Create auto command.
     create_autocmd = true,
 
-    -- Auto command group name
+    -- Auto command group name.
     augroup_name = "lspformatter_augroup",
 
-    -- Auto command event
-    autocmd_event = "BufWritePre",
+    -- Auto command event.
+    autocmd_event = "BufWritePost",
 
-    -- Enable debug
-    debug = true,
+    -- Enable debug.
+    debug = false,
+
+    -- Print log to file.
+    file_log = false,
+
+    -- Log file name, working with `file_log=true`.
+    file_log_name = "lspformatter.log",
 })
 ```
