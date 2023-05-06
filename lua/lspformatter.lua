@@ -1,48 +1,70 @@
 local logger = require("logger")
 
-local Defaults = {
-    async = true,
-    null_ls_only = false,
-    timeout = 2000,
-    formatting_params = {},
-    create_autocmd = true,
-    augroup_name = "lspformatter_augroup",
-    debug = false,
-    file_log = false,
-    file_log_name = "lspformatter.log",
-}
-local Configs = {}
-
 local FORMATTING_METHOD = "textDocument/formatting"
 local CHANGEDTICK = "changedtick"
 local LSPFORMATTER_CHANGEDTICK = "lspformatter_changedtick"
 local NULL_LS = "null-ls"
 
-local function get_client_name(client)
+-- configs {
+
+local Defaults = {
+    async = true,
+    null_ls_only = false,
+    timeout = 2000,
+    formatting_params = {},
+    augroup = "lspformatter_augroup",
+    debug = false,
+    console_log = true,
+    file_log = false,
+    file_log_name = "lspformatter.log",
+}
+local Configs = {}
+
+-- }
+
+-- utils {
+
+local function client_util_get_name(client)
     return client and tostring(client.name) or "unknown"
 end
 
-local function get_client_id(client)
+local function client_util_get_id(client)
     return client and tostring(client.id) or "?"
 end
 
-local function get_client_title(client)
+local function client_util_get_symbol(client)
     return string.format(
         "[%s-%d]",
-        get_client_name(client),
-        get_client_id(client)
+        client_util_get_name(client),
+        client_util_get_id(client)
     )
 end
+
+local ClientUtil = {
+    get_name = client_util_get_name,
+    get_id = client_util_get_id,
+    get_symbol = client_util_get_symbol,
+}
+
+local BufferUtil = {
+    get_name = function(bufnr)
+        return bufnr and string.format("buffer-%d", bufnr)
+            or string.format("buffer-?")
+    end,
+}
+
+-- }
 
 local function setup(option)
     Configs = vim.tbl_deep_extend("force", vim.deepcopy(Defaults), option or {})
     logger.setup({
         name = "lspformatter",
         level = Configs.debug and "DEBUG" or "WARN",
+        console = Configs.console_log,
         file = Configs.file_log,
         file_name = Configs.file_log_name,
     })
-    vim.api.nvim_create_augroup(Configs.augroup_name, {})
+    vim.api.nvim_create_augroup(Configs.augroup, {})
 end
 
 local function async_format(bufnr, option)
@@ -62,7 +84,11 @@ local function async_format(bufnr, option)
         function(err, res, ctx)
             if err then
                 local err_msg = type(err) == "string" and err or err.message
-                logger.error("Failed to format code with error %s", err_msg)
+                logger.error(
+                    "Failed to format code on %s with error %s",
+                    BufferUtil.get_name(bufnr),
+                    err_msg
+                )
                 return
             end
 
@@ -78,7 +104,7 @@ local function async_format(bufnr, option)
                 LSPFORMATTER_CHANGEDTICK
             ) ~= vim.api.nvim_buf_get_var(ctx.bufnr, CHANGEDTICK)
             local filter_null_ls = option.null_ls_only
-                and get_client_name(client) ~= NULL_LS
+                and ClientUtil.get_name(client) ~= NULL_LS
 
             -- don't apply results if buffer is unloaded or has been modified
             if
@@ -89,7 +115,7 @@ local function async_format(bufnr, option)
                 or filter_null_ls
             then
                 logger.debug(
-                    "Ignore code format for bufnr not found(%s), modified(%s), inserting(%s), changedtick not match(%s), filter null-ls(%s)",
+                    "Ignore code format because bufnr not found(%s), modified(%s), inserting(%s), changedtick not match(%s), filter null-ls(%s)",
                     vim.inspect(bufnr_not_found),
                     vim.inspect(bufnr_modified),
                     vim.inspect(in_insert_mode),
@@ -101,8 +127,9 @@ local function async_format(bufnr, option)
 
             if res then
                 logger.debug(
-                    "Apply code format result on client %s",
-                    get_client_title(client)
+                    "Apply code format result on %s, %s",
+                    ClientUtil.get_symbol(client),
+                    BufferUtil.get_name(bufnr)
                 )
                 vim.lsp.util.apply_text_edits(
                     res,
@@ -114,8 +141,9 @@ local function async_format(bufnr, option)
                 end)
             else
                 logger.debug(
-                    "Empty code format result on client %s",
-                    get_client_title(client)
+                    "Empty code format result on %s, %s",
+                    ClientUtil.get_symbol(client),
+                    BufferUtil.get_name(bufnr)
                 )
             end
         end
@@ -137,24 +165,25 @@ local function on_attach(client, bufnr, option)
     option = vim.tbl_deep_extend("force", vim.deepcopy(Configs), option or {})
 
     logger.debug(
-        "Client %s attach bufnr %d with option %s",
-        get_client_title(client),
-        bufnr,
+        "%s attach %s with option %s",
+        ClientUtil.get_symbol(client),
+        BufferUtil.get_name(bufnr),
         vim.inspect(option)
     )
     if client.supports_method(FORMATTING_METHOD) then
         logger.debug(
-            "Client %s on attach bufnr %d",
-            get_client_title(client),
-            bufnr
+            "%s attach %s on protocol %s",
+            ClientUtil.get_symbol(client),
+            BufferUtil.get_name(bufnr),
+            FORMATTING_METHOD
         )
         vim.api.nvim_clear_autocmds({
-            group = option.augroup_name,
+            group = option.augroup,
             buffer = bufnr,
         })
         if option.async then
             vim.api.nvim_create_autocmd("BufWritePost", {
-                group = option.augroup_name,
+                group = option.augroup,
                 buffer = bufnr,
                 callback = function()
                     async_format(bufnr, option)
@@ -162,13 +191,20 @@ local function on_attach(client, bufnr, option)
             })
         else
             vim.api.nvim_create_autocmd("BufWritePre", {
-                group = option.augroup_name,
+                group = option.augroup,
                 buffer = bufnr,
                 callback = function()
                     sync_format(bufnr, option)
                 end,
             })
         end
+    else
+        logger.debug(
+            "%s failed to attach %s on protocol %s",
+            ClientUtil.get_symbol(client),
+            BufferUtil.get_name(bufnr),
+            FORMATTING_METHOD
+        )
     end
 end
 

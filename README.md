@@ -1,13 +1,14 @@
 # lspformatter.nvim
 
-A code formatter using lsp for Neovim.
+A Neovim code formatter using lsp.
 
 Note: this plugin will not install any formatter for you, we suggest install
 formatters via a lsp installer, e.g. [mason.nvim](https://github.com/williamboman/mason.nvim).
+And register formatters via [null-ls](https://github.com/jose-elias-alvarez/null-ls.nvim).
 
-Thanks to [lsp-format.nvim](https://github.com/lukas-reineke/lsp-format.nvim)
+**Thanks to [lsp-format.nvim](https://github.com/lukas-reineke/lsp-format.nvim)
 and [null-ls's wiki - Format on save](https://github.com/jose-elias-alvarez/null-ls.nvim/wiki/Formatting-on-save),
-I read most of their source code and write this plugin.
+I learned everything from them and also copied their source code to this plugin.**
 
 ## Requirement
 
@@ -30,17 +31,25 @@ I read most of their source code and write this plugin.
 
 ## Usage
 
-Attach when setup lsp client:
+Attach lspformatter to lsp setup handler with API
+`require('lspformatter').on_attach(client, bufnr, option)`:
 
 ```lua
+-- for specific lsp: tsserver
 lspconfig.tsserver.setup({on_attach = require("lspformatter").on_attach})
 
-lspconfig[lsp].setup({
+-- for any lsp
+lspconfig["tsserver"].setup({
     on_attach = function(client, bufnr)
         require("lspformatter").on_attach(client, bufnr)
     end,
 })
 ```
+
+Notice: `client` and `bufnr` are standard lsp `on_attach` function parameters.
+And there's an optional parameter `option` (lua table), share the same schema
+with `setup` (See [Configuration](#configuration)) function. So you can use
+different configuration for different lsp setup handlers.
 
 ## Configuration
 
@@ -53,22 +62,20 @@ require('lspformatter').setup({
     null_ls_only = false,
 
     -- Timeout on wait formatting result in milliseconds.
+    -- This config only apply to sync format.
     timeout = 2000,
 
     -- Formatting parameters.
     formatting_params = {},
 
-    -- Create auto command.
-    create_autocmd = true,
-
     -- Auto command group name.
-    augroup_name = "lspformatter_augroup",
-
-    -- Auto command event.
-    autocmd_event = "BufWritePost",
+    augroup = "lspformatter_augroup",
 
     -- Enable debug.
     debug = false,
+
+    -- Print log to console, e.g. command line.
+    console_log = true,
 
     -- Print log to file.
     file_log = false,
