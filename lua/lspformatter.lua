@@ -1,4 +1,4 @@
-local logger = require("logger")
+local logger = require("lspformatter.logger")
 
 local FORMATTING_METHOD = "textDocument/formatting"
 local CHANGEDTICK = "changedtick"
@@ -7,6 +7,7 @@ local NULL_LS = "null-ls"
 
 -- configs {
 
+--- @type table<string, any>
 local Defaults = {
     async = true,
     null_ls_only = false,
@@ -16,22 +17,33 @@ local Defaults = {
     debug = false,
     console_log = true,
     file_log = false,
-    file_log_name = "lspformatter.log",
 }
+--- @type table<string, any>
 local Configs = {}
 
 -- }
 
 -- utils {
 
+--- @class LspClient
+--- @field name string
+--- @field id integer
+--- @field supports_method fun(method:string):boolean
+
+--- @param client LspClient
+--- @return string
 local function client_util_get_name(client)
     return client and tostring(client.name) or "unknown"
 end
 
+--- @param client LspClient
+--- @return string
 local function client_util_get_id(client)
     return client and tostring(client.id) or "?"
 end
 
+--- @param client LspClient
+--- @return string
 local function client_util_get_symbol(client)
     return string.format(
         "[%s-%d]",
@@ -40,13 +52,17 @@ local function client_util_get_symbol(client)
     )
 end
 
+--- @type table<string, function>
 local ClientUtil = {
     get_name = client_util_get_name,
     get_id = client_util_get_id,
     get_symbol = client_util_get_symbol,
 }
 
+--- @type table<string, function>
 local BufferUtil = {
+    --- @param bufnr integer
+    --- @return string
     get_name = function(bufnr)
         return bufnr and string.format("buffer-%d", bufnr)
             or string.format("buffer-?")
@@ -55,18 +71,21 @@ local BufferUtil = {
 
 -- }
 
+--- @param option table<string, any>
+--- @return nil
 local function setup(option)
     Configs = vim.tbl_deep_extend("force", vim.deepcopy(Defaults), option or {})
     logger.setup({
-        name = "lspformatter",
-        level = Configs.debug and "DEBUG" or "WARN",
-        console = Configs.console_log,
-        file = Configs.file_log,
-        file_name = Configs.file_log_name,
+        level=Configs.debug and "DEBUG" or "WARN",
+        console=Configs.console_log,
+        file=Configs.file_log,
     })
     vim.api.nvim_create_augroup(Configs.augroup, {})
 end
 
+--- @param bufnr integer
+--- @param option table<string, any>
+--- @return nil
 local function async_format(bufnr, option)
     bufnr = bufnr or vim.api.nvim_get_current_buf()
 
@@ -150,6 +169,9 @@ local function async_format(bufnr, option)
     )
 end
 
+--- @param bufnr integer
+--- @param option table<string, any>
+--- @return nil
 local function sync_format(bufnr, option)
     vim.lsp.buf.format({
         async = false,
@@ -161,6 +183,10 @@ local function sync_format(bufnr, option)
     })
 end
 
+--- @param client LspClient
+--- @param bufnr integer
+--- @param option table<string, any>
+--- @return nil
 local function on_attach(client, bufnr, option)
     option = vim.tbl_deep_extend("force", vim.deepcopy(Configs), option or {})
 
@@ -208,6 +234,7 @@ local function on_attach(client, bufnr, option)
     end
 end
 
+--- @type table<string, function>
 local M = {
     setup = setup,
     on_attach = on_attach,

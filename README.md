@@ -13,7 +13,6 @@ I learned everything from them and also copied their source code to this plugin.
 ## Requirement
 
 - Neovim &ge; 0.8.
-- [logger.nvim](https://github.com/linrongbin16/logger.nvim).
 
 ## Installation
 
@@ -22,7 +21,6 @@ I learned everything from them and also copied their source code to this plugin.
 ```lua
 {
     "linrongbin16/lspformatter.nvim",
-    dependencies = "linrongbin16/logger.nvim",
     config = function()
         require('lspformatter').setup()
     end,
@@ -79,8 +77,5 @@ require('lspformatter').setup({
 
     -- Print log to file.
     file_log = false,
-
-    -- Log file name, working with `file_log=true`.
-    file_log_name = "lspformatter.log",
 })
 ```
